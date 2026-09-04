@@ -99,7 +99,7 @@ const Task = sequelize.define('Task', {
     { fields: ['due_date'] },
     { fields: ['created_at'] },
     { fields: ['archived'] },
-    { fields: ['userId'] },
+    { fields: ['user_id'] },
   ],
 });
 
