@@ -1,11 +1,13 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Calendar, BarChart3, Archive, Sun, Moon, Plus } from 'lucide-react';
+import { LayoutDashboard, Calendar, BarChart3, Archive, Sun, Moon, Plus, LogOut } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
+import { useAuth } from '../context/AuthContext';
 import { useState } from 'react';
 import TaskForm from './TaskForm';
 
 export default function Layout({ children }) {
   const { darkMode, toggleDarkMode } = useTheme();
+  const { user, logout } = useAuth();
   const location = useLocation();
   const [showForm, setShowForm] = useState(false);
 
@@ -41,6 +43,14 @@ export default function Layout({ children }) {
         </nav>
 
         <div className="sidebar-footer">
+          {user && (
+            <div className="user-info">
+              <span className="user-name">{user.username || user.email}</span>
+              <button className="logout-btn" onClick={logout} title="Logout">
+                <LogOut size={16} />
+              </button>
+            </div>
+          )}
           <button className="theme-toggle" onClick={toggleDarkMode}>
             {darkMode ? <Sun size={18} /> : <Moon size={18} />}
             <span>{darkMode ? 'Light mode' : 'Dark mode'}</span>

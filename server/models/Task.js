@@ -82,6 +82,14 @@ const Task = sequelize.define('Task', {
     type: DataTypes.BOOLEAN,
     defaultValue: false,
   },
+  userId: {
+    type: DataTypes.UUID,
+    allowNull: false,
+    references: {
+      model: 'users',
+      key: 'id',
+    },
+  },
 }, {
   tableName: 'tasks',
   indexes: [
@@ -91,6 +99,7 @@ const Task = sequelize.define('Task', {
     { fields: ['due_date'] },
     { fields: ['created_at'] },
     { fields: ['archived'] },
+    { fields: ['userId'] },
   ],
 });
 

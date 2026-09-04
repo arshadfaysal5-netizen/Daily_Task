@@ -11,6 +11,7 @@ const initialState = {
   total: 0,
   page: 1,
   pages: 1,
+  limit: 20,
   filters: {},
 };
 
@@ -22,6 +23,15 @@ function taskReducer(state, action) {
       return {
         ...state,
         tasks: action.payload.tasks,
+        total: action.payload.total,
+        page: action.payload.page,
+        pages: action.payload.pages,
+        loading: false,
+      };
+    case 'APPEND_TASKS':
+      return {
+        ...state,
+        tasks: [...state.tasks, ...action.payload.tasks],
         total: action.payload.total,
         page: action.payload.page,
         pages: action.payload.pages,
@@ -72,6 +82,25 @@ export function TaskProvider({ children }) {
     }
   };
 
+  const loadMore = async (filters = {}) => {
+    dispatch({ type: 'SET_LOADING', payload: true });
+    try {
+      const nextPage = state.page + 1;
+      const params = new URLSearchParams();
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          params.append(key, value);
+        }
+      });
+      params.append('page', nextPage);
+      params.append('limit', state.limit);
+      const res = await api.get(`/tasks?${params.toString()}`);
+      dispatch({ type: 'APPEND_TASKS', payload: res.data });
+    } catch (error) {
+      dispatch({ type: 'SET_ERROR', payload: error.response?.data?.error || 'Failed to load more tasks' });
+    }
+  };
+
   const fetchStats = async () => {
     dispatch({ type: 'SET_LOADING', payload: true });
     try {
@@ -103,30 +132,42 @@ export function TaskProvider({ children }) {
   };
 
   const updateStatus = async (id, status) => {
+    const task = state.tasks.find(t => t.id === id);
+    const optimistic = { ...task, status };
+    dispatch({ type: 'UPDATE_TASK', payload: optimistic });
     try {
       const res = await api.patch(`/tasks/${id}/status`, { status });
       dispatch({ type: 'UPDATE_TASK', payload: res.data });
       return res.data;
     } catch (error) {
+      if (task) dispatch({ type: 'UPDATE_TASK', payload: task });
       throw error;
     }
   };
 
   const deleteTask = async (id) => {
+    const task = state.tasks.find(t => t.id === id);
+    dispatch({ type: 'REMOVE_TASK', payload: id });
     try {
       await api.delete(`/tasks/${id}`);
-      dispatch({ type: 'REMOVE_TASK', payload: id });
     } catch (error) {
+      if (task) dispatch({ type: 'ADD_TASK', payload: task });
       throw error;
     }
   };
 
   const toggleArchive = async (id) => {
+    const task = state.tasks.find(t => t.id === id);
+    if (task) {
+      const optimistic = { ...task, isArchived: !task.isArchived };
+      dispatch({ type: 'UPDATE_TASK', payload: optimistic });
+    }
     try {
       const res = await api.post(`/tasks/${id}/toggle-archive`);
       dispatch({ type: 'UPDATE_TASK', payload: res.data });
       return res.data;
     } catch (error) {
+      if (task) dispatch({ type: 'UPDATE_TASK', payload: task });
       throw error;
     }
   };
@@ -145,6 +186,7 @@ export function TaskProvider({ children }) {
     <TaskContext.Provider value={{
       ...state,
       fetchTasks,
+      loadMore,
       fetchStats,
       createTask,
       updateTask,

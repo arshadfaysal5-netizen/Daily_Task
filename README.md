@@ -1,8 +1,8 @@
 # 📖 Daily Taskbook
 
-A full-stack task management application built with React, Node.js, Express, and PostgreSQL.
+A full-stack task management application built with React, Node.js, Express, and PostgreSQL. Organize your tasks, track progress, and boost your productivity with an intuitive interface.
 
-## Features
+## ✨ Features
 
 - ✅ **Task Management** - Create, edit, delete, and organize tasks
 - 🗂 **Status Tracking** - Pending, In Progress, Completed, Cancelled
@@ -17,44 +17,58 @@ A full-stack task management application built with React, Node.js, Express, and
 - 📦 **Drag & Drop** - Reorder tasks easily
 - 🗄 **Archive** - Archive completed or inactive tasks
 - ⏰ **Auto-Archive** - Automatic archiving via cron job
+- 🔐 **Authentication** - JWT-based user authentication and authorization
 - 🛡 **Security** - Helmet, rate limiting, validation
 
-## Tech Stack
+## 🛠 Tech Stack
 
 - **Frontend**: React 18, React Router, Recharts, Lucide Icons, Vite
 - **Backend**: Node.js, Express, Sequelize ORM
 - **Database**: PostgreSQL
+- **Authentication**: JWT (JSON Web Tokens), bcryptjs
 - **Other**: Helmet, morgan, express-rate-limit, node-cron
 
-## Prerequisites
+## 📸 Screenshots
+
+<!-- Add screenshots here -->
+> _Screenshots coming soon_
+
+## 🚀 Quick Start
+
+### Prerequisites
 
 - Node.js (v18+)
 - PostgreSQL (v13+)
+- Docker (optional, for containerized setup)
 
-## Installation
-
-### 1. Install dependencies
+### 1. Clone the repository
 
 ```bash
+git clone https://github.com/arshadfaysal5-netizen/daily-taskbook.git
 cd daily-taskbook
+```
+
+### 2. Install dependencies
+
+```bash
 npm run install:all
 ```
 
-### 2. Configure environment
+### 3. Configure environment
 
 ```bash
 cp server/.env.example server/.env
 ```
 
-Edit `server/.env` with your PostgreSQL credentials.
+Edit `server/.env` with your PostgreSQL credentials and JWT secret.
 
-### 3. Create the database
+### 4. Create the database
 
 ```bash
 npm run db:setup
 ```
 
-### 4. Run the application
+### 5. Run the application
 
 ```bash
 npm run dev
@@ -63,7 +77,36 @@ npm run dev
 - Frontend: http://localhost:5173
 - Backend API: http://localhost:5000
 
-## API Endpoints
+## 🐳 Docker Setup
+
+### Using Docker Compose
+
+```bash
+docker-compose up -d
+```
+
+This will:
+- Start a PostgreSQL 15 database
+- Build and run the application
+- Expose the app on port 5000
+
+### Stop services
+
+```bash
+docker-compose down
+```
+
+## 📡 API Endpoints
+
+### Authentication
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/auth/register` | Register a new user |
+| POST | `/api/auth/login` | Login and get JWT token |
+| GET | `/api/auth/me` | Get current user profile |
+
+### Tasks
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -81,27 +124,88 @@ npm run dev
 | POST | `/api/tasks/:id/subtasks` | Add subtask |
 | PUT | `/api/tasks/:id/subtasks/:subtaskId` | Update subtask |
 | DELETE | `/api/tasks/:id/subtasks/:subtaskId` | Delete subtask |
+
+### Categories
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
 | GET | `/api/categories` | List categories |
 | POST | `/api/categories` | Create category |
 | PUT | `/api/categories/:id` | Update category |
 | DELETE | `/api/categories/:id` | Delete category |
 
-## Project Structure
+## 🔧 Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `DB_HOST` | PostgreSQL host | `localhost` |
+| `DB_PORT` | PostgreSQL port | `5432` |
+| `DB_NAME` | Database name | `daily_taskbook` |
+| `DB_USER` | Database user | `postgres` |
+| `DB_PASSWORD` | Database password | `password` |
+| `JWT_SECRET` | Secret key for JWT signing | - |
+| `JWT_EXPIRES_IN` | JWT token expiration | `7d` |
+| `PORT` | Server port | `5000` |
+| `NODE_ENV` | Environment mode | `development` |
+| `CLIENT_URL` | Frontend URL for CORS | `http://localhost:5173` |
+
+## 📁 Project Structure
 
 ```
 daily-taskbook/
-├── server/                 # Backend
-│   ├── config/           # DB config & setup
-│   ├── models/           # Sequelize models
-│   ├── routes/           # API routes
-│   ├── services/         # Business logic
-│   └── index.js          # Server entry
-└── client/                # Frontend
-    ├── src/
-    │   ├── components/   # React components
-    │   ├── context/      # State management
-    │   ├── pages/        # Page components
-    │   ├── styles/       # Global styles
-    │   └── utils/        # API & helpers
-    └── index.html
+├── server/                    # Backend
+│   ├── config/              # DB config & setup
+│   ├── middleware/           # Express middleware
+│   ├── models/              # Sequelize models
+│   ├── routes/              # API routes
+│   ├── services/            # Business logic
+│   ├── utils/               # Utilities
+│   ├── __tests__/           # Server tests
+│   └── index.js             # Server entry
+├── client/                   # Frontend
+│   ├── src/
+│   │   ├── components/      # React components
+│   │   ├── context/         # State management
+│   │   ├── pages/           # Page components
+│   │   ├── styles/          # Global styles
+│   │   └── utils/           # API & helpers
+│   └── index.html
+├── .github/workflows/        # CI/CD
+├── Dockerfile                # Docker build
+├── docker-compose.yml        # Docker Compose
+└── package.json              # Root package
 ```
+
+## 🧪 Testing
+
+### Run server tests
+
+```bash
+npm test
+```
+
+### Run client linting
+
+```bash
+npm run lint
+```
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 👨‍💻 Author
+
+**arshadfaysal5-netizen**
+
+---
+
+⭐ Star this repository if you find it helpful!

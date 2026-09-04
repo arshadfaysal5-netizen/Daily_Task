@@ -1,7 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { useTasks } from '../context/TaskContext';
 import { priorityLabels } from '../utils/helpers';
+import api from '../utils/api';
+
+const FALLBACK_CATEGORIES = ['general', 'work', 'personal', 'health', 'study', 'finance', 'shopping', 'family', 'other'];
 
 export default function TaskForm({ task, onClose }) {
   const { createTask, updateTask } = useTasks();
@@ -20,8 +23,18 @@ export default function TaskForm({ task, onClose }) {
   });
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [categories, setCategories] = useState(FALLBACK_CATEGORIES);
 
-  const categories = ['general', 'work', 'personal', 'health', 'study', 'finance', 'shopping', 'family', 'other'];
+  useEffect(() => {
+    api.get('/categories')
+      .then(res => {
+        const cats = res.data;
+        if (Array.isArray(cats) && cats.length > 0) {
+          setCategories(cats.map(c => typeof c === 'string' ? c : c.name || c.id));
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

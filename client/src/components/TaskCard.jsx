@@ -12,34 +12,50 @@ export default function TaskCard({ task, onDragStart, onDragEnd }) {
   const [expanded, setExpanded] = useState(false);
   const [subtaskInput, setSubtaskInput] = useState('');
   const [editing, setEditing] = useState(false);
+  const [subtaskError, setSubtaskError] = useState('');
 
   const handleStatusChange = async (newStatus) => {
     await updateStatus(task.id, newStatus);
   };
 
   const handleSubtaskToggle = async (subtaskId) => {
-    const subtasks = task.subtasks.map(st =>
-      st.id === subtaskId ? { ...st, completed: !st.completed } : st
-    );
-    await updateTask(task.id, { subtasks });
+    try {
+      const subtasks = task.subtasks.map(st =>
+        st.id === subtaskId ? { ...st, completed: !st.completed } : st
+      );
+      await updateTask(task.id, { subtasks });
+    } catch {
+      setSubtaskError('Failed to update subtask');
+      setTimeout(() => setSubtaskError(''), 2000);
+    }
   };
 
   const handleAddSubtask = async (e) => {
     e.preventDefault();
     if (!subtaskInput.trim()) return;
-    const subtasks = [...(task.subtasks || []), {
-      id: crypto.randomUUID(),
-      title: subtaskInput,
-      completed: false,
-      createdAt: new Date(),
-    }];
-    await updateTask(task.id, { subtasks });
-    setSubtaskInput('');
+    try {
+      const subtasks = [...(task.subtasks || []), {
+        id: crypto.randomUUID(),
+        title: subtaskInput,
+        completed: false,
+        createdAt: new Date(),
+      }];
+      await updateTask(task.id, { subtasks });
+      setSubtaskInput('');
+    } catch {
+      setSubtaskError('Failed to add subtask');
+      setTimeout(() => setSubtaskError(''), 2000);
+    }
   };
 
   const deleteSubtask = async (subtaskId) => {
-    const subtasks = task.subtasks.filter(st => st.id !== subtaskId);
-    await updateTask(task.id, { subtasks });
+    try {
+      const subtasks = task.subtasks.filter(st => st.id !== subtaskId);
+      await updateTask(task.id, { subtasks });
+    } catch {
+      setSubtaskError('Failed to delete subtask');
+      setTimeout(() => setSubtaskError(''), 2000);
+    }
   };
 
   const progress = task.subtasks?.length
@@ -128,6 +144,7 @@ export default function TaskCard({ task, onDragStart, onDragEnd }) {
 
       {expanded && (
         <div className="subtasks-section">
+          {subtaskError && <div className="error-msg">{subtaskError}</div>}
           <form onSubmit={handleAddSubtask} className="subtask-input-row">
             <input
               type="text"

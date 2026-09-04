@@ -1,51 +1,71 @@
 const { Task, Category } = require('../models');
 const { Op, fn, col } = require('sequelize');
+const sequelize = require('../config/database');
+const logger = require('../utils/logger');
 
 const priorityOrder = { urgent: 0, high: 1, medium: 2, low: 3 };
 
 class TaskService {
-  async createTask(data) {
-    const task = await Task.create(data);
+  async createTask(data, userId) {
+    const task = await Task.create({ ...data, userId });
     return this.formatTask(task);
   }
 
-  async getTask(id) {
+  async getTask(id, userId) {
     return this.formatTask(await Task.findByPk(id, {
+      where: { userId },
       include: [{ model: Category, as: 'categoryObj' }],
     }));
   }
 
-  async updateTask(id, data) {
+  async updateTask(id, data, userId) {
     const task = await Task.findByPk(id);
-    if (!task) return null;
+    if (!task || task.userId !== userId) return null;
 
     if (!data.category && data.categoryId) {
       const cat = await Category.findByPk(data.categoryId);
       if (cat) data.category = cat.name;
     }
 
-    await task.update(data);
-    return this.formatTask(task);
-  }
+    const allowedFields = [
+      'title', 'description', 'status', 'priority', 'category',
+      'dueDate', 'dueTime', 'tags', 'isRecurring', 'recurringPattern',
+      'recurringEndDate', 'estimatedMinutes', 'actualMinutes', 'subtasks',
+      'notes', 'sortOrder', 'archived', 'categoryId',
+    ];
 
-  async updateStatus(id, status) {
-    const task = await Task.findByPk(id);
-    if (!task) return null;
-
-    task.status = status;
-    if (status === 'completed') {
-      task.completedAt = new Date();
-      if (task.isRecurring) {
-        await this.handleRecurrence(task);
+    const safeData = {};
+    for (const key of allowedFields) {
+      if (key in data) {
+        safeData[key] = data[key];
       }
-    } else {
-      task.completedAt = null;
     }
-    await task.save();
+
+    await task.update(safeData);
     return this.formatTask(task);
   }
 
-  async handleRecurrence(task) {
+  async updateStatus(id, status, userId) {
+    const result = await sequelize.transaction(async (t) => {
+      const task = await Task.findByPk(id, { transaction: t });
+      if (!task || task.userId !== userId) return null;
+
+      task.status = status;
+      if (status === 'completed') {
+        task.completedAt = new Date();
+        if (task.isRecurring) {
+          await this.handleRecurrence(task, t);
+        }
+      } else {
+        task.completedAt = null;
+      }
+      await task.save({ transaction: t });
+      return this.formatTask(task);
+    });
+    return result;
+  }
+
+  async handleRecurrence(task, transaction) {
     const pattern = task.recurringPattern;
     if (!pattern) return;
 
@@ -89,21 +109,24 @@ class TaskService {
       estimatedMinutes: task.estimatedMinutes,
       tags: task.tags,
       categoryId: task.categoryId,
+      userId: task.userId,
+    }, { transaction });
+  }
+
+  async reorderTasks(orderedIds, userId) {
+    await sequelize.transaction(async (t) => {
+      for (let i = 0; i < orderedIds.length; i++) {
+        await Task.update(
+          { sortOrder: i },
+          { where: { id: orderedIds[i], userId }, transaction: t }
+        );
+      }
     });
   }
 
-  async reorderTasks(orderedIds) {
-    for (let i = 0; i < orderedIds.length; i++) {
-      await Task.update(
-        { sortOrder: i },
-        { where: { id: orderedIds[i] } }
-      );
-    }
-  }
-
-  async addSubtask(taskId, data) {
+  async addSubtask(taskId, data, userId) {
     const task = await Task.findByPk(taskId);
-    if (!task) return null;
+    if (!task || task.userId !== userId) return null;
 
     const subtasks = task.subtasks || [];
     subtasks.push({
@@ -117,9 +140,9 @@ class TaskService {
     return this.formatTask(task);
   }
 
-  async updateSubtask(taskId, subtaskId, data) {
+  async updateSubtask(taskId, subtaskId, data, userId) {
     const task = await Task.findByPk(taskId);
-    if (!task) return null;
+    if (!task || task.userId !== userId) return null;
 
     const subtasks = (task.subtasks || []).map(st =>
       st.id === subtaskId ? { ...st, ...data } : st
@@ -129,16 +152,16 @@ class TaskService {
     return this.formatTask(task);
   }
 
-  async deleteSubtask(taskId, subtaskId) {
+  async deleteSubtask(taskId, subtaskId, userId) {
     const task = await Task.findByPk(taskId);
-    if (!task) return null;
+    if (!task || task.userId !== userId) return null;
 
     task.subtasks = (task.subtasks || []).filter(st => st.id !== subtaskId);
     await task.save();
     return this.formatTask(task);
   }
 
-  async getStats() {
+  async getStats(userId) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const todayStr = today.toISOString().split('T')[0];
@@ -147,6 +170,8 @@ class TaskService {
     startOfWeek.setDate(today.getDate() - today.getDay());
     const endOfWeek = new Date(startOfWeek);
     endOfWeek.setDate(startOfWeek.getDate() + 7);
+
+    const baseWhere = { userId };
 
     const [
       total,
@@ -162,12 +187,13 @@ class TaskService {
       totalTimeSpent,
       recentCompletionTrend,
     ] = await Promise.all([
-      Task.count({ where: { archived: false } }),
-      Task.count({ where: { status: 'completed', archived: false } }),
-      Task.count({ where: { status: 'pending', archived: false } }),
-      Task.count({ where: { status: 'in_progress', archived: false } }),
+      Task.count({ where: { ...baseWhere, archived: false } }),
+      Task.count({ where: { ...baseWhere, status: 'completed', archived: false } }),
+      Task.count({ where: { ...baseWhere, status: 'pending', archived: false } }),
+      Task.count({ where: { ...baseWhere, status: 'in_progress', archived: false } }),
       Task.count({
         where: {
+          ...baseWhere,
           dueDate: { [Op.lt]: todayStr },
           status: { [Op.in]: ['pending', 'in_progress'] },
           archived: false,
@@ -175,46 +201,44 @@ class TaskService {
       }),
       Task.findAll({
         attributes: ['priority', [require('sequelize').fn('COUNT', require('sequelize').col('id')), 'count']],
-        where: { archived: false },
+        where: { ...baseWhere, archived: false },
         group: ['priority'],
         raw: true,
       }),
       Task.findAll({
         attributes: ['category', [require('sequelize').fn('COUNT', require('sequelize').col('id')), 'count']],
-        where: { archived: false },
+        where: { ...baseWhere, archived: false },
         group: ['category'],
         raw: true,
       }),
       Task.findAll({
         attributes: ['dueDate'],
-        where: { completedAt: { [Op.gte]: today }, status: 'completed' },
+        where: { ...baseWhere, completedAt: { [Op.gte]: today }, status: 'completed' },
         raw: true,
       }),
       Task.findAll({
         attributes: ['dueDate'],
         where: {
+          ...baseWhere,
           completedAt: { [Op.gte]: startOfWeek },
           status: 'completed',
         },
         raw: true,
       }),
       Task.findAll({
-        attributes: [
-          'title',
-          'createdAt',
-          'completedAt',
-        ],
-        where: { status: 'completed', completedAt: { [Op.not]: null } },
+        attributes: ['title', 'createdAt', 'completedAt'],
+        where: { ...baseWhere, status: 'completed', completedAt: { [Op.not]: null } },
         raw: true,
         limit: 100,
       }),
-      Task.sum('actualMinutes', { where: { status: 'completed' } }),
+      Task.sum('actualMinutes', { where: { ...baseWhere, status: 'completed' } }),
       Task.findAll({
         attributes: [
           [fn('date_trunc', 'day', col('completed_at')), 'date'],
           [fn('COUNT', col('id')), 'count'],
         ],
         where: {
+          ...baseWhere,
           status: 'completed',
           completedAt: { [Op.gte]: new Date(Date.now() - 30 * 86400000) },
         },
@@ -247,11 +271,12 @@ class TaskService {
     };
   }
 
-  async getCalendarTasks(year, month) {
+  async getCalendarTasks(userId, year, month) {
     const startDate = new Date(year, month - 1, 1);
     const endDate = new Date(year, month, 0, 23, 59, 59);
     const tasks = await Task.findAll({
       where: {
+        userId,
         dueDate: {
           [Op.between]: [
             startDate.toISOString().split('T')[0],
@@ -272,7 +297,7 @@ class TaskService {
       ? Math.round(((t.subtasks.filter(s => s.completed).length) / t.subtasks.length) * 100)
       : 0;
     t.isOverdue = t.dueDate && t.status !== 'completed' &&
-      new Date(t.dueDate) < new Date() - 86400000;
+      new Date(t.dueDate + 'T23:59:59') < new Date();
     return t;
   }
 }

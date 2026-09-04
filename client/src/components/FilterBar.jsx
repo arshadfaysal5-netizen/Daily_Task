@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Search, X } from 'lucide-react';
+import api from '../utils/api';
+
+const FALLBACK_CATEGORIES = ['general', 'work', 'personal', 'health', 'study', 'finance', 'shopping', 'family', 'other'];
 
 export default function FilterBar({ onFilter }) {
   const [filters, setFilters] = useState({
@@ -9,6 +12,18 @@ export default function FilterBar({ onFilter }) {
     priority: '',
     category: '',
   });
+  const [categories, setCategories] = useState(FALLBACK_CATEGORIES);
+
+  useEffect(() => {
+    api.get('/categories')
+      .then(res => {
+        const cats = res.data;
+        if (Array.isArray(cats) && cats.length > 0) {
+          setCategories(cats.map(c => typeof c === 'string' ? c : c.name || c.id));
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -72,7 +87,7 @@ export default function FilterBar({ onFilter }) {
 
         <select value={filters.category} onChange={e => updateFilter('category', e.target.value)}>
           <option value="">All Categories</option>
-          {['general', 'work', 'personal', 'health', 'study', 'finance', 'shopping', 'family', 'other'].map(c => (
+          {categories.map(c => (
             <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>
           ))}
         </select>

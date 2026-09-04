@@ -19,7 +19,7 @@ export default function QuickStats({ stats, loading }) {
       value: stats.completed,
       label: 'Completed',
       color: 'green',
-      extra: `of ${stats.completed}`,
+      extra: `of ${stats.total}`,
     },
     {
       icon: LayoutGrid,
